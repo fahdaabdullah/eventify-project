@@ -1,7 +1,22 @@
 import { useState } from "react";
 
 function Attendance() {
-  const [records, setRecords] = useState([]);
+  const [records, setRecords] = useState([
+    {
+      id: "A101",
+      name: "Ali Ahmed",
+      studentId: "2023001",
+      event: "AI Workshop",
+      status: "Present",
+    },
+    {
+      id: "A102",
+      name: "Sara Khalid",
+      studentId: "2023002",
+      event: "Hackathon",
+      status: "Absent",
+    },
+  ]);
 
   const [form, setForm] = useState({
     id: "",
@@ -11,11 +26,19 @@ function Attendance() {
     status: "Present",
   });
 
-  const handleAdd = () => {
-    if (!form.name || !form.studentId || !form.event) return;
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [errorMessage, setErrorMessage] = useState("");
 
-    setRecords([...records, form]);
+  function handleChange(e) {
+    const { name, value } = e.target;
+    setForm({
+      ...form,
+      [name]: value,
+    });
+  }
 
+  function clearForm() {
     setForm({
       id: "",
       name: "",
@@ -23,81 +46,285 @@ function Attendance() {
       event: "",
       status: "Present",
     });
-  };
+    setIsEditing(false);
+    setEditingId(null);
+    setErrorMessage("");
+  }
 
-  const handleDelete = (index) => {
-    const updated = records.filter((_, i) => i !== index);
-    setRecords(updated);
-  };
+  function validateForm() {
+    if (
+      !form.id.trim() ||
+      !form.name.trim() ||
+      !form.studentId.trim() ||
+      !form.event.trim()
+    ) {
+      setErrorMessage("Please fill in all fields.");
+      return false;
+    }
+
+    const duplicateId = records.some(
+      (record) =>
+        record.id.toLowerCase() === form.id.toLowerCase() &&
+        record.id !== editingId
+    );
+
+    if (duplicateId) {
+      setErrorMessage("Record ID must be unique.");
+      return false;
+    }
+
+    setErrorMessage("");
+    return true;
+  }
+
+  function handleAdd(e) {
+    e.preventDefault();
+
+    if (!validateForm()) return;
+
+    setRecords([...records, form]);
+    clearForm();
+  }
+
+  function handleEdit(record) {
+    setForm(record);
+    setIsEditing(true);
+    setEditingId(record.id);
+    setErrorMessage("");
+  }
+
+  function handleUpdate(e) {
+    e.preventDefault();
+
+    if (!validateForm()) return;
+
+    const updatedRecords = records.map((record) =>
+      record.id === editingId ? { ...form } : record
+    );
+
+    setRecords(updatedRecords);
+    clearForm();
+  }
+
+  function handleDelete(id) {
+    const updatedRecords = records.filter((record) => record.id !== id);
+    setRecords(updatedRecords);
+
+    if (editingId === id) {
+      clearForm();
+    }
+  }
 
   return (
-    <div style={{ padding: "20px" }}>
-      <h2>Attendance Records</h2>
+    <div style={styles.container}>
+      <h2 style={styles.title}>Attendance Records</h2>
+      <p style={styles.subtitle}>
+        Add, update, delete, and display attendance records.
+      </p>
 
-      <input
-        placeholder="Record ID"
-        value={form.id}
-        onChange={(e) => setForm({ ...form, id: e.target.value })}
-      />
+      <form onSubmit={isEditing ? handleUpdate : handleAdd} style={styles.form}>
+        <h3 style={styles.formTitle}>
+          {isEditing ? "Edit Attendance Record" : "Add Attendance Record"}
+        </h3>
 
-      <br />
+        {errorMessage && <p style={styles.error}>{errorMessage}</p>}
 
-      <input
-        placeholder="Student Name"
-        value={form.name}
-        onChange={(e) => setForm({ ...form, name: e.target.value })}
-      />
+        <div style={styles.grid}>
+          <input
+            type="text"
+            name="id"
+            placeholder="Record ID"
+            value={form.id}
+            onChange={handleChange}
+            style={styles.input}
+          />
 
-      <br />
+          <input
+            type="text"
+            name="name"
+            placeholder="Student Name"
+            value={form.name}
+            onChange={handleChange}
+            style={styles.input}
+          />
 
-      <input
-        placeholder="Student ID"
-        value={form.studentId}
-        onChange={(e) =>
-          setForm({ ...form, studentId: e.target.value })
-        }
-      />
+          <input
+            type="text"
+            name="studentId"
+            placeholder="Student ID"
+            value={form.studentId}
+            onChange={handleChange}
+            style={styles.input}
+          />
 
-      <br />
+          <input
+            type="text"
+            name="event"
+            placeholder="Event Title"
+            value={form.event}
+            onChange={handleChange}
+            style={styles.input}
+          />
 
-      <input
-        placeholder="Event Title"
-        value={form.event}
-        onChange={(e) => setForm({ ...form, event: e.target.value })}
-      />
+          <select
+            name="status"
+            value={form.status}
+            onChange={handleChange}
+            style={styles.input}
+          >
+            <option value="Present">Present</option>
+            <option value="Absent">Absent</option>
+          </select>
+        </div>
 
-      <br />
+        <div style={styles.buttonRow}>
+          <button type="submit" style={styles.primaryButton}>
+            {isEditing ? "Update Record" : "Add Record"}
+          </button>
 
-      <select
-        value={form.status}
-        onChange={(e) => setForm({ ...form, status: e.target.value })}
-      >
-        <option>Present</option>
-        <option>Absent</option>
-      </select>
+          <button type="button" onClick={clearForm} style={styles.secondaryButton}>
+            Clear
+          </button>
+        </div>
+      </form>
 
-      <br /><br />
+      <div>
+        <h3 style={styles.sectionTitle}>Attendance List</h3>
 
-      <button onClick={handleAdd}>Add Record</button>
+        {records.length === 0 ? (
+          <p>No attendance records available.</p>
+        ) : (
+          <div style={styles.cardList}>
+            {records.map((record) => (
+              <div key={record.id} style={styles.card}>
+                <h4 style={styles.cardTitle}>{record.name}</h4>
+                <p><strong>Record ID:</strong> {record.id}</p>
+                <p><strong>Student ID:</strong> {record.studentId}</p>
+                <p><strong>Event:</strong> {record.event}</p>
+                <p><strong>Status:</strong> {record.status}</p>
 
-      <hr />
-
-      <ul>
-        {records.map((r, index) => (
-          <li key={index}>
-            {r.name} | {r.event} | {r.status}
-
-            <button
-              onClick={() => handleDelete(index)}
-              style={{ marginLeft: "10px" }}
-            >
-              Delete
-            </button>
-          </li>
-        ))}
-      </ul>
+                <div style={styles.buttonRow}>
+                  <button
+                    onClick={() => handleEdit(record)}
+                    style={styles.editButton}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDelete(record.id)}
+                    style={styles.deleteButton}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
+
+const styles = {
+  container: {
+    maxWidth: "1000px",
+    margin: "0 auto",
+    padding: "20px",
+    fontFamily: "Arial, sans-serif",
+  },
+  title: {
+    color: "#0d47a1",
+    marginBottom: "10px",
+  },
+  subtitle: {
+    marginBottom: "25px",
+    color: "#444",
+  },
+  form: {
+    backgroundColor: "#f5f7fb",
+    padding: "20px",
+    borderRadius: "10px",
+    boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+    marginBottom: "30px",
+  },
+  formTitle: {
+    marginBottom: "15px",
+    color: "#0d47a1",
+  },
+  error: {
+    color: "red",
+    marginBottom: "15px",
+    fontWeight: "bold",
+  },
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+    gap: "15px",
+  },
+  input: {
+    padding: "10px",
+    border: "1px solid #ccc",
+    borderRadius: "6px",
+    fontSize: "14px",
+  },
+  buttonRow: {
+    marginTop: "20px",
+    display: "flex",
+    gap: "10px",
+    flexWrap: "wrap",
+  },
+  primaryButton: {
+    padding: "10px 16px",
+    backgroundColor: "#0d47a1",
+    color: "white",
+    border: "none",
+    borderRadius: "6px",
+    cursor: "pointer",
+  },
+  secondaryButton: {
+    padding: "10px 16px",
+    backgroundColor: "#e0e0e0",
+    color: "#333",
+    border: "none",
+    borderRadius: "6px",
+    cursor: "pointer",
+  },
+  sectionTitle: {
+    color: "#0d47a1",
+    marginBottom: "15px",
+  },
+  cardList: {
+    display: "grid",
+    gap: "15px",
+  },
+  card: {
+    border: "1px solid #ddd",
+    borderRadius: "10px",
+    padding: "18px",
+    backgroundColor: "#ffffff",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.06)",
+  },
+  cardTitle: {
+    marginBottom: "10px",
+    color: "#1565c0",
+  },
+  editButton: {
+    padding: "8px 14px",
+    backgroundColor: "#1976d2",
+    color: "white",
+    border: "none",
+    borderRadius: "6px",
+    cursor: "pointer",
+  },
+  deleteButton: {
+    padding: "8px 14px",
+    backgroundColor: "#d32f2f",
+    color: "white",
+    border: "none",
+    borderRadius: "6px",
+    cursor: "pointer",
+  },
+};
 
 export default Attendance;
