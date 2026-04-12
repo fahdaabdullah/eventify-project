@@ -1,80 +1,108 @@
+import { Link } from 'react-router-dom';
+import { card, colors, pageShell } from '../styles_theme';
+
 function Home() {
   return (
-    <div style={styles.container}>
-      <div style={styles.hero}>
+    <div style={pageShell}>
+      <section style={styles.hero}>
         <h1 style={styles.title}>Welcome to Eventify</h1>
         <p style={styles.subtitle}>
-          A simple university club events asset management system for managing
-          events, clubs, and attendance records.
+          Eventify is a university clubs assets management system that helps users manage three main record types:
+          events, clubs, and RSVP/attendance records. The application supports adding, updating, deleting,
+          and displaying records through a simple React interface.
         </p>
-      </div>
 
-      <div style={styles.cards}>
-        <div style={styles.card}>
-          <h3 style={styles.cardTitle}>Events</h3>
+        <div style={styles.heroButtons}>
+          <Link to="/events" style={styles.primaryLink}>Manage Events</Link>
+          <Link to="/about" style={styles.secondaryLink}>View Team</Link>
+        </div>
+      </section>
+
+      <section style={styles.cards}>
+        <div style={styles.moduleCard}>
+          <h3 style={styles.cardTitle}>Events Module</h3>
           <p style={styles.cardText}>
-            Add, update, and organize university events.
+            Add, edit, delete, and display event records.
           </p>
         </div>
 
-        <div style={styles.card}>
-          <h3 style={styles.cardTitle}>Clubs</h3>
+        <div style={styles.moduleCard}>
+          <h3 style={styles.cardTitle}>Clubs Module</h3>
           <p style={styles.cardText}>
-            Manage club profiles, categories, and leadership details.
+            Add, edit, delete, and display club records.
           </p>
         </div>
 
-        <div style={styles.card}>
-          <h3 style={styles.cardTitle}>Attendance</h3>
+        <div style={styles.moduleCard}>
+          <h3 style={styles.cardTitle}>RSVP and Attendance Module</h3>
           <p style={styles.cardText}>
-            Track student participation and attendance records.
+            Add, edit, delete, and display RSVP and attendance records.
           </p>
         </div>
-      </div>
+      </section>
     </div>
   );
 }
 
 const styles = {
-  container: {
-    maxWidth: "1100px",
-    margin: "0 auto",
-    padding: "40px 20px",
-  },
   hero: {
-    textAlign: "center",
-    marginBottom: "40px",
+    ...card,
+    textAlign: 'center',
+    padding: '42px 28px',
+    marginBottom: '28px',
+    background: 'linear-gradient(135deg, #eff6ff 0%, #ffffff 65%)',
   },
   title: {
-    color: "#1d4ed8",
-    marginBottom: "12px",
-    fontSize: "2.4rem",
+    color: colors.primary,
+    marginBottom: '12px',
+    fontSize: '2.5rem',
   },
   subtitle: {
-    color: "#4b5563",
-    fontSize: "1.05rem",
-    maxWidth: "700px",
-    margin: "0 auto",
-    lineHeight: "1.6",
+    color: colors.muted,
+    fontSize: '1.05rem',
+    maxWidth: '780px',
+    margin: '0 auto',
+    lineHeight: '1.7',
+  },
+  heroButtons: {
+    display: 'flex',
+    justifyContent: 'center',
+    gap: '14px',
+    marginTop: '24px',
+    flexWrap: 'wrap',
+  },
+  primaryLink: {
+    backgroundColor: colors.primary,
+    color: '#fff',
+    padding: '12px 18px',
+    borderRadius: '12px',
+    fontWeight: '700',
+  },
+  secondaryLink: {
+    backgroundColor: '#dbeafe',
+    color: '#1e40af',
+    padding: '12px 18px',
+    borderRadius: '12px',
+    fontWeight: '700',
   },
   cards: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-    gap: "20px",
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+    gap: '18px',
   },
-  card: {
-    backgroundColor: "#ffffff",
-    borderRadius: "16px",
-    padding: "24px",
-    boxShadow: "0 6px 18px rgba(0, 0, 0, 0.08)",
+  moduleCard: {
+    ...card,
+    padding: '24px',
   },
   cardTitle: {
-    color: "#1d4ed8",
-    marginBottom: "10px",
+    color: colors.primary,
+    marginTop: 0,
+    marginBottom: '10px',
   },
   cardText: {
-    color: "#4b5563",
-    lineHeight: "1.6",
+    color: colors.muted,
+    lineHeight: '1.6',
+    marginBottom: 0,
   },
 };
 

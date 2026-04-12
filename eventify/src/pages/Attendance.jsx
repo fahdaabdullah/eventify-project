@@ -1,88 +1,134 @@
-import { useState } from "react";
+import { useEffect, useState } from 'react';
+import {
+  buttonRow,
+  card,
+  colors,
+  deleteButton,
+  editButton,
+  emptyState,
+  errorBox,
+  formGrid,
+  helperText,
+  inputBase,
+  pageShell,
+  primaryButton,
+  secondaryButton,
+  sectionSubtitle,
+  sectionTitle,
+} from '../styles_theme';
+
+const STORAGE_KEY = 'eventify-attendance';
+
+const initialRecords = [
+  {
+    id: 'ATD-101',
+    name: 'Ali Ahmed',
+    studentId: '2023001',
+    event: 'AI Workshop',
+    rsvpStatus: 'Going',
+    attendanceStatus: 'Present',
+  },
+  {
+    id: 'ATD-102',
+    name: 'Sara Khalid',
+    studentId: '2023002',
+    event: 'Hackathon',
+    rsvpStatus: 'Maybe',
+    attendanceStatus: 'Absent',
+  },
+];
+
+const emptyForm = {
+  id: '',
+  name: '',
+  studentId: '',
+  event: '',
+  rsvpStatus: 'Going',
+  attendanceStatus: 'Present',
+};
 
 function Attendance() {
-  const [records, setRecords] = useState([
-    {
-      id: "A101",
-      name: "Ali Ahmed",
-      studentId: "2023001",
-      event: "AI Workshop",
-      status: "Present",
-    },
-    {
-      id: "A102",
-      name: "Sara Khalid",
-      studentId: "2023002",
-      event: "Hackathon",
-      status: "Absent",
-    },
-  ]);
-
-  const [form, setForm] = useState({
-    id: "",
-    name: "",
-    studentId: "",
-    event: "",
-    status: "Present",
+  const [records, setRecords] = useState(() => {
+    const saved = sessionStorage.getItem(STORAGE_KEY);
+    return saved ? JSON.parse(saved) : initialRecords;
   });
-
+  const [form, setForm] = useState(emptyForm);
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [errorMessage, setErrorMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState('');
+
+  useEffect(() => {
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+  }, [records]);
 
   function handleChange(e) {
     const { name, value } = e.target;
-    setForm({
-      ...form,
-      [name]: value,
-    });
+    setForm((prev) => ({ ...prev, [name]: value }));
   }
 
   function clearForm() {
-    setForm({
-      id: "",
-      name: "",
-      studentId: "",
-      event: "",
-      status: "Present",
-    });
+    setForm(emptyForm);
     setIsEditing(false);
     setEditingId(null);
-    setErrorMessage("");
+    setErrorMessage('');
   }
 
   function validateForm() {
-    if (
-      !form.id.trim() ||
-      !form.name.trim() ||
-      !form.studentId.trim() ||
-      !form.event.trim()
-    ) {
-      setErrorMessage("Please fill in all fields.");
+    const { id, name, studentId, event } = form;
+
+    if (!id.trim() || !name.trim() || !studentId.trim() || !event.trim()) {
+      setErrorMessage('Please fill in all attendance fields.');
+      return false;
+    }
+
+    if (!/^ATD-\d{3}$/i.test(id.trim())) {
+      setErrorMessage('Record ID must follow this format: ATD-101');
+      return false;
+    }
+
+    if (!/^\d{7}$/.test(studentId.trim())) {
+      setErrorMessage('Student ID must contain exactly 7 digits.');
       return false;
     }
 
     const duplicateId = records.some(
       (record) =>
-        record.id.toLowerCase() === form.id.toLowerCase() &&
+        record.id.toLowerCase() === id.trim().toLowerCase() &&
         record.id !== editingId
     );
 
     if (duplicateId) {
-      setErrorMessage("Record ID must be unique.");
+      setErrorMessage('Record ID must be unique.');
       return false;
     }
 
-    setErrorMessage("");
+    setErrorMessage('');
     return true;
   }
 
-  function handleAdd(e) {
+  function handleSubmit(e) {
     e.preventDefault();
-
     if (!validateForm()) return;
 
-    setRecords([...records, form]);
+    const normalizedRecord = {
+      id: form.id.trim().toUpperCase(),
+      name: form.name.trim(),
+      studentId: form.studentId.trim(),
+      event: form.event.trim(),
+      rsvpStatus: form.rsvpStatus,
+      attendanceStatus: form.attendanceStatus,
+    };
+
+    if (isEditing) {
+      setRecords((prev) =>
+        prev.map((record) =>
+          record.id === editingId ? normalizedRecord : record
+        )
+      );
+    } else {
+      setRecords((prev) => [...prev, normalizedRecord]);
+    }
+
     clearForm();
   }
 
@@ -90,130 +136,118 @@ function Attendance() {
     setForm(record);
     setIsEditing(true);
     setEditingId(record.id);
-    setErrorMessage("");
-  }
-
-  function handleUpdate(e) {
-    e.preventDefault();
-
-    if (!validateForm()) return;
-
-    const updatedRecords = records.map((record) =>
-      record.id === editingId ? { ...form } : record
-    );
-
-    setRecords(updatedRecords);
-    clearForm();
+    setErrorMessage('');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   function handleDelete(id) {
-    const updatedRecords = records.filter((record) => record.id !== id);
-    setRecords(updatedRecords);
-
-    if (editingId === id) {
-      clearForm();
-    }
+    setRecords((prev) => prev.filter((record) => record.id !== id));
+    if (editingId === id) clearForm();
   }
 
   return (
-    <div style={styles.container}>
-      <h2 style={styles.title}>Attendance Records</h2>
-      <p style={styles.subtitle}>
-        Add, update, delete, and display attendance records.
+    <div style={pageShell}>
+      <h2 style={sectionTitle}>RSVP and Attendance Records</h2>
+      <p style={sectionSubtitle}>
+        Store student RSVP decisions and attendance outcomes in one place for each event record.
       </p>
 
-      <form onSubmit={isEditing ? handleUpdate : handleAdd} style={styles.form}>
-        <h3 style={styles.formTitle}>
-          {isEditing ? "Edit Attendance Record" : "Add Attendance Record"}
+      <form onSubmit={handleSubmit} style={card}>
+        <h3 style={{ ...sectionTitle, marginTop: 0 }}>
+          {isEditing ? 'Edit Attendance Record' : 'Add Attendance Record'}
         </h3>
+        <p style={{ ...helperText, marginTop: 0 }}>
+          Use a Record ID such as <strong>ATD-101</strong> and a 7-digit Student ID.
+        </p>
 
-        {errorMessage && <p style={styles.error}>{errorMessage}</p>}
+        {errorMessage && <div style={errorBox}>{errorMessage}</div>}
 
-        <div style={styles.grid}>
+        <div style={formGrid}>
           <input
             type="text"
             name="id"
-            placeholder="Record ID"
+            placeholder="Record ID (ATD-101)"
             value={form.id}
             onChange={handleChange}
-            style={styles.input}
+            style={inputBase}
           />
-
           <input
             type="text"
             name="name"
             placeholder="Student Name"
             value={form.name}
             onChange={handleChange}
-            style={styles.input}
+            style={inputBase}
           />
-
           <input
             type="text"
             name="studentId"
             placeholder="Student ID"
             value={form.studentId}
             onChange={handleChange}
-            style={styles.input}
+            style={inputBase}
           />
-
           <input
             type="text"
             name="event"
             placeholder="Event Title"
             value={form.event}
             onChange={handleChange}
-            style={styles.input}
+            style={inputBase}
           />
-
           <select
-            name="status"
-            value={form.status}
+            name="rsvpStatus"
+            value={form.rsvpStatus}
             onChange={handleChange}
-            style={styles.input}
+            style={inputBase}
+          >
+            <option value="Going">Going</option>
+            <option value="Maybe">Maybe</option>
+            <option value="Not Going">Not Going</option>
+          </select>
+          <select
+            name="attendanceStatus"
+            value={form.attendanceStatus}
+            onChange={handleChange}
+            style={inputBase}
           >
             <option value="Present">Present</option>
             <option value="Absent">Absent</option>
           </select>
         </div>
 
-        <div style={styles.buttonRow}>
-          <button type="submit" style={styles.primaryButton}>
-            {isEditing ? "Update Record" : "Add Record"}
+        <div style={buttonRow}>
+          <button type="submit" style={primaryButton}>
+            {isEditing ? 'Update Record' : 'Add Record'}
           </button>
-
-          <button type="button" onClick={clearForm} style={styles.secondaryButton}>
+          <button type="button" onClick={clearForm} style={secondaryButton}>
             Clear
           </button>
         </div>
       </form>
 
-      <div>
-        <h3 style={styles.sectionTitle}>Attendance List</h3>
+      <div style={{ marginTop: '28px' }}>
+        <h3 style={{ ...sectionTitle, marginTop: 0 }}>Records List</h3>
 
         {records.length === 0 ? (
-          <p>No attendance records available.</p>
+          <div style={emptyState}>No attendance records available yet.</div>
         ) : (
           <div style={styles.cardList}>
             {records.map((record) => (
-              <div key={record.id} style={styles.card}>
+              <div key={record.id} style={styles.itemCard}>
+                <div style={styles.badge}>Attendance Record</div>
                 <h4 style={styles.cardTitle}>{record.name}</h4>
                 <p><strong>Record ID:</strong> {record.id}</p>
                 <p><strong>Student ID:</strong> {record.studentId}</p>
                 <p><strong>Event:</strong> {record.event}</p>
-                <p><strong>Status:</strong> {record.status}</p>
+                <p><strong>RSVP Status:</strong> {record.rsvpStatus}</p>
+                <p><strong>Attendance Status:</strong> {record.attendanceStatus}</p>
 
-                <div style={styles.buttonRow}>
-                  <button
-                    onClick={() => handleEdit(record)}
-                    style={styles.editButton}
-                  >
+                <div style={buttonRow}>
+                  <button onClick={() => handleEdit(record)} style={editButton}>
                     Edit
                   </button>
-                  <button
-                    onClick={() => handleDelete(record.id)}
-                    style={styles.deleteButton}
-                  >
+                  <button onClick={() => handleDelete(record.id)} style={deleteButton}>
                     Delete
                   </button>
                 </div>
@@ -227,103 +261,29 @@ function Attendance() {
 }
 
 const styles = {
-  container: {
-    maxWidth: "1000px",
-    margin: "0 auto",
-    padding: "20px",
-    fontFamily: "Arial, sans-serif",
-  },
-  title: {
-    color: "#0d47a1",
-    marginBottom: "10px",
-  },
-  subtitle: {
-    marginBottom: "25px",
-    color: "#444",
-  },
-  form: {
-    backgroundColor: "#f5f7fb",
-    padding: "20px",
-    borderRadius: "10px",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-    marginBottom: "30px",
-  },
-  formTitle: {
-    marginBottom: "15px",
-    color: "#0d47a1",
-  },
-  error: {
-    color: "red",
-    marginBottom: "15px",
-    fontWeight: "bold",
-  },
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-    gap: "15px",
-  },
-  input: {
-    padding: "10px",
-    border: "1px solid #ccc",
-    borderRadius: "6px",
-    fontSize: "14px",
-  },
-  buttonRow: {
-    marginTop: "20px",
-    display: "flex",
-    gap: "10px",
-    flexWrap: "wrap",
-  },
-  primaryButton: {
-    padding: "10px 16px",
-    backgroundColor: "#0d47a1",
-    color: "white",
-    border: "none",
-    borderRadius: "6px",
-    cursor: "pointer",
-  },
-  secondaryButton: {
-    padding: "10px 16px",
-    backgroundColor: "#e0e0e0",
-    color: "#333",
-    border: "none",
-    borderRadius: "6px",
-    cursor: "pointer",
-  },
-  sectionTitle: {
-    color: "#0d47a1",
-    marginBottom: "15px",
-  },
   cardList: {
-    display: "grid",
-    gap: "15px",
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+    gap: '18px',
   },
-  card: {
-    border: "1px solid #ddd",
-    borderRadius: "10px",
-    padding: "18px",
-    backgroundColor: "#ffffff",
-    boxShadow: "0 2px 6px rgba(0,0,0,0.06)",
+  itemCard: {
+    ...card,
+    padding: '20px',
+  },
+  badge: {
+    display: 'inline-block',
+    marginBottom: '12px',
+    padding: '6px 10px',
+    borderRadius: '999px',
+    backgroundColor: colors.primarySoft,
+    color: colors.primaryDark,
+    fontSize: '0.85rem',
+    fontWeight: '700',
   },
   cardTitle: {
-    marginBottom: "10px",
-    color: "#1565c0",
-  },
-  editButton: {
-    padding: "8px 14px",
-    backgroundColor: "#1976d2",
-    color: "white",
-    border: "none",
-    borderRadius: "6px",
-    cursor: "pointer",
-  },
-  deleteButton: {
-    padding: "8px 14px",
-    backgroundColor: "#d32f2f",
-    color: "white",
-    border: "none",
-    borderRadius: "6px",
-    cursor: "pointer",
+    marginTop: 0,
+    marginBottom: '12px',
+    color: colors.primary,
   },
 };
 

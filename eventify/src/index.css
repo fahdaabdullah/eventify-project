@@ -2,10 +2,14 @@
   box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   margin: 0;
   font-family: Arial, sans-serif;
-  background-color: #f3f6fb;
+  background: linear-gradient(180deg, #f3f6fb 0%, #edf4ff 100%);
   color: #1f2937;
 }
 
@@ -16,8 +20,20 @@ a {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: #1d4ed8;
+  box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.12);
+}
+
+button:hover {
+  opacity: 0.96;
 }
 
 #root {
