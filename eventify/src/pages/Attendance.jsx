@@ -17,26 +17,7 @@ import {
   sectionTitle,
 } from '../styles_theme';
 
-const STORAGE_KEY = 'eventify-attendance';
-
-const initialRecords = [
-  {
-    id: 'ATD-101',
-    name: 'Ali Ahmed',
-    studentId: '2023001',
-    event: 'AI Workshop',
-    rsvpStatus: 'Going',
-    attendanceStatus: 'Present',
-  },
-  {
-    id: 'ATD-102',
-    name: 'Sara Khalid',
-    studentId: '2023002',
-    event: 'Hackathon',
-    rsvpStatus: 'Maybe',
-    attendanceStatus: 'Absent',
-  },
-];
+const API_URL = 'http://localhost:8080/api/attendance';
 
 const emptyForm = {
   id: '',
@@ -48,18 +29,30 @@ const emptyForm = {
 };
 
 function Attendance() {
-  const [records, setRecords] = useState(() => {
-    const saved = sessionStorage.getItem(STORAGE_KEY);
-    return saved ? JSON.parse(saved) : initialRecords;
-  });
+  const [records, setRecords] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(records));
-  }, [records]);
+    fetchAttendanceRecords();
+  }, []);
+
+  async function fetchAttendanceRecords() {
+    try {
+      const response = await fetch(API_URL);
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch attendance records');
+      }
+
+      const data = await response.json();
+      setRecords(data);
+    } catch (error) {
+      setErrorMessage('Could not load attendance records from the server.');
+    }
+  }
 
   function handleChange(e) {
     const { name, value } = e.target;
@@ -74,9 +67,16 @@ function Attendance() {
   }
 
   function validateForm() {
-    const { id, name, studentId, event } = form;
+    const { id, name, studentId, event, rsvpStatus, attendanceStatus } = form;
 
-    if (!id.trim() || !name.trim() || !studentId.trim() || !event.trim()) {
+    if (
+      !id.trim() ||
+      !name.trim() ||
+      !studentId.trim() ||
+      !event.trim() ||
+      !rsvpStatus.trim() ||
+      !attendanceStatus.trim()
+    ) {
       setErrorMessage('Please fill in all attendance fields.');
       return false;
     }
@@ -86,14 +86,26 @@ function Attendance() {
       return false;
     }
 
+    if (name.trim().length < 3) {
+      setErrorMessage('Student name must contain at least 3 characters.');
+      return false;
+    }
+
     if (!/^\d{7}$/.test(studentId.trim())) {
       setErrorMessage('Student ID must contain exactly 7 digits.');
       return false;
     }
 
+    if (event.trim().length < 3) {
+      setErrorMessage('Event title must contain at least 3 characters.');
+      return false;
+    }
+
+    const normalizedId = id.trim().toUpperCase();
+
     const duplicateId = records.some(
       (record) =>
-        record.id.toLowerCase() === id.trim().toLowerCase() &&
+        record.id.toUpperCase() === normalizedId &&
         record.id !== editingId
     );
 
@@ -106,8 +118,9 @@ function Attendance() {
     return true;
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
+
     if (!validateForm()) return;
 
     const normalizedRecord = {
@@ -119,30 +132,63 @@ function Attendance() {
       attendanceStatus: form.attendanceStatus,
     };
 
-    if (isEditing) {
-      setRecords((prev) =>
-        prev.map((record) =>
-          record.id === editingId ? normalizedRecord : record
-        )
-      );
-    } else {
-      setRecords((prev) => [...prev, normalizedRecord]);
-    }
+    try {
+      const url = isEditing ? `${API_URL}/${editingId}` : API_URL;
+      const method = isEditing ? 'PUT' : 'POST';
 
-    clearForm();
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(normalizedRecord),
+      });
+
+      if (!response.ok) {
+        throw new Error('Request failed');
+      }
+
+      await fetchAttendanceRecords();
+      clearForm();
+    } catch (error) {
+      setErrorMessage('Could not save the attendance record on the server.');
+    }
   }
 
   function handleEdit(record) {
-    setForm(record);
+    setForm({
+      id: record.id,
+      name: record.name,
+      studentId: record.studentId,
+      event: record.event,
+      rsvpStatus: record.rsvpStatus,
+      attendanceStatus: record.attendanceStatus,
+    });
+
     setIsEditing(true);
     setEditingId(record.id);
     setErrorMessage('');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  function handleDelete(id) {
-    setRecords((prev) => prev.filter((record) => record.id !== id));
-    if (editingId === id) clearForm();
+  async function handleDelete(id) {
+    try {
+      const response = await fetch(`${API_URL}/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Delete failed');
+      }
+
+      await fetchAttendanceRecords();
+
+      if (editingId === id) {
+        clearForm();
+      }
+    } catch (error) {
+      setErrorMessage('Could not delete the attendance record from the server.');
+    }
   }
 
   return (
@@ -156,6 +202,7 @@ function Attendance() {
         <h3 style={{ ...sectionTitle, marginTop: 0 }}>
           {isEditing ? 'Edit Attendance Record' : 'Add Attendance Record'}
         </h3>
+
         <p style={{ ...helperText, marginTop: 0 }}>
           Use a Record ID such as <strong>ATD-101</strong> and a 7-digit Student ID.
         </p>
@@ -170,7 +217,9 @@ function Attendance() {
             value={form.id}
             onChange={handleChange}
             style={inputBase}
+            disabled={isEditing}
           />
+
           <input
             type="text"
             name="name"
@@ -179,6 +228,7 @@ function Attendance() {
             onChange={handleChange}
             style={inputBase}
           />
+
           <input
             type="text"
             name="studentId"
@@ -187,6 +237,7 @@ function Attendance() {
             onChange={handleChange}
             style={inputBase}
           />
+
           <input
             type="text"
             name="event"
@@ -195,6 +246,7 @@ function Attendance() {
             onChange={handleChange}
             style={inputBase}
           />
+
           <select
             name="rsvpStatus"
             value={form.rsvpStatus}
@@ -205,6 +257,7 @@ function Attendance() {
             <option value="Maybe">Maybe</option>
             <option value="Not Going">Not Going</option>
           </select>
+
           <select
             name="attendanceStatus"
             value={form.attendanceStatus}
@@ -220,6 +273,7 @@ function Attendance() {
           <button type="submit" style={primaryButton}>
             {isEditing ? 'Update Record' : 'Add Record'}
           </button>
+
           <button type="button" onClick={clearForm} style={secondaryButton}>
             Clear
           </button>
@@ -229,6 +283,10 @@ function Attendance() {
       <div style={{ marginTop: '28px' }}>
         <h3 style={{ ...sectionTitle, marginTop: 0 }}>Records List</h3>
 
+        <p style={{ ...helperText, marginTop: 0 }}>
+          Changes are now saved in the Spring Boot server using an embedded H2 database.
+        </p>
+
         {records.length === 0 ? (
           <div style={emptyState}>No attendance records available yet.</div>
         ) : (
@@ -237,6 +295,7 @@ function Attendance() {
               <div key={record.id} style={styles.itemCard}>
                 <div style={styles.badge}>Attendance Record</div>
                 <h4 style={styles.cardTitle}>{record.name}</h4>
+
                 <p><strong>Record ID:</strong> {record.id}</p>
                 <p><strong>Student ID:</strong> {record.studentId}</p>
                 <p><strong>Event:</strong> {record.event}</p>
@@ -247,6 +306,7 @@ function Attendance() {
                   <button onClick={() => handleEdit(record)} style={editButton}>
                     Edit
                   </button>
+
                   <button onClick={() => handleDelete(record.id)} style={deleteButton}>
                     Delete
                   </button>

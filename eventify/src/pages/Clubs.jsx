@@ -17,34 +17,7 @@ import {
   sectionTitle,
 } from '../styles_theme';
 
-const STORAGE_KEY = 'eventify-clubs';
-
-const initialClubs = [
-  {
-    id: 'CLB-101',
-    name: 'IEEE Club',
-    category: 'Technology',
-    president: 'Ali Hassan',
-    email: 'ieee@university.edu',
-    membersCount: '85',
-  },
-  {
-    id: 'CLB-102',
-    name: 'Debate Club',
-    category: 'Academic',
-    president: 'Sara Ahmed',
-    email: 'debate@university.edu',
-    membersCount: '40',
-  },
-  {
-    id: 'CLB-103',
-    name: 'Art Club',
-    category: 'Creative',
-    president: 'Lina Omar',
-    email: 'art@university.edu',
-    membersCount: '55',
-  },
-];
+const API_URL = 'http://localhost:8080/api/clubs';
 
 const emptyForm = {
   id: '',
@@ -56,18 +29,30 @@ const emptyForm = {
 };
 
 export default function Clubs() {
-  const [clubs, setClubs] = useState(() => {
-    const saved = sessionStorage.getItem(STORAGE_KEY);
-    return saved ? JSON.parse(saved) : initialClubs;
-  });
+  const [clubs, setClubs] = useState([]);
   const [formData, setFormData] = useState(emptyForm);
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(clubs));
-  }, [clubs]);
+    fetchClubs();
+  }, []);
+
+  async function fetchClubs() {
+    try {
+      const response = await fetch(API_URL);
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch clubs');
+      }
+
+      const data = await response.json();
+      setClubs(data);
+    } catch (error) {
+      setErrorMessage('Could not load clubs from the server.');
+    }
+  }
 
   function handleChange(e) {
     const { name, value } = e.target;
@@ -90,7 +75,7 @@ export default function Clubs() {
       !category.trim() ||
       !president.trim() ||
       !email.trim() ||
-      !membersCount.trim()
+      !membersCount.toString().trim()
     ) {
       setErrorMessage('Please fill in all club fields.');
       return false;
@@ -101,19 +86,36 @@ export default function Clubs() {
       return false;
     }
 
+    if (name.trim().length < 3) {
+      setErrorMessage('Club name must contain at least 3 characters.');
+      return false;
+    }
+
+    if (category.trim().length < 3) {
+      setErrorMessage('Category must contain at least 3 characters.');
+      return false;
+    }
+
+    if (president.trim().length < 3) {
+      setErrorMessage('President name must contain at least 3 characters.');
+      return false;
+    }
+
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       setErrorMessage('Please enter a valid email address.');
       return false;
     }
 
-    if (!/^\d+$/.test(membersCount) || Number(membersCount) <= 0) {
+    if (!/^\d+$/.test(membersCount.toString()) || Number(membersCount) <= 0) {
       setErrorMessage('Number of members must be a valid positive whole number.');
       return false;
     }
 
+    const normalizedId = id.trim().toUpperCase();
+
     const duplicateId = clubs.some(
       (club) =>
-        club.id.toLowerCase() === id.trim().toLowerCase() &&
+        club.id.toUpperCase() === normalizedId &&
         club.id !== editingId
     );
 
@@ -126,8 +128,9 @@ export default function Clubs() {
     return true;
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
+
     if (!validateForm()) return;
 
     const normalizedClub = {
@@ -136,31 +139,66 @@ export default function Clubs() {
       category: formData.category.trim(),
       president: formData.president.trim(),
       email: formData.email.trim().toLowerCase(),
-      membersCount: String(Number(formData.membersCount)),
+      membersCount: Number(formData.membersCount),
     };
 
-    if (isEditing) {
-      setClubs((prev) =>
-        prev.map((club) => (club.id === editingId ? normalizedClub : club))
-      );
-    } else {
-      setClubs((prev) => [...prev, normalizedClub]);
-    }
+    try {
+      const url = isEditing ? `${API_URL}/${editingId}` : API_URL;
+      const method = isEditing ? 'PUT' : 'POST';
 
-    clearForm();
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(normalizedClub),
+      });
+
+      if (!response.ok) {
+        throw new Error('Request failed');
+      }
+
+      await fetchClubs();
+      clearForm();
+    } catch (error) {
+      setErrorMessage('Could not save the club on the server.');
+    }
   }
 
   function handleEditClub(club) {
-    setFormData(club);
+    setFormData({
+      id: club.id,
+      name: club.name,
+      category: club.category,
+      president: club.president,
+      email: club.email,
+      membersCount: String(club.membersCount),
+    });
+
     setIsEditing(true);
     setEditingId(club.id);
     setErrorMessage('');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  function handleDeleteClub(id) {
-    setClubs((prev) => prev.filter((club) => club.id !== id));
-    if (editingId === id) clearForm();
+  async function handleDeleteClub(id) {
+    try {
+      const response = await fetch(`${API_URL}/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Delete failed');
+      }
+
+      await fetchClubs();
+
+      if (editingId === id) {
+        clearForm();
+      }
+    } catch (error) {
+      setErrorMessage('Could not delete the club from the server.');
+    }
   }
 
   return (
@@ -188,7 +226,9 @@ export default function Clubs() {
             value={formData.id}
             onChange={handleChange}
             style={inputBase}
+            disabled={isEditing}
           />
+
           <input
             type="text"
             name="name"
@@ -197,6 +237,7 @@ export default function Clubs() {
             onChange={handleChange}
             style={inputBase}
           />
+
           <input
             type="text"
             name="category"
@@ -205,6 +246,7 @@ export default function Clubs() {
             onChange={handleChange}
             style={inputBase}
           />
+
           <input
             type="text"
             name="president"
@@ -213,6 +255,7 @@ export default function Clubs() {
             onChange={handleChange}
             style={inputBase}
           />
+
           <input
             type="email"
             name="email"
@@ -221,6 +264,7 @@ export default function Clubs() {
             onChange={handleChange}
             style={inputBase}
           />
+
           <input
             type="number"
             name="membersCount"
@@ -237,6 +281,7 @@ export default function Clubs() {
           <button type="submit" style={primaryButton}>
             {isEditing ? 'Update Club' : 'Add Club'}
           </button>
+
           <button type="button" onClick={clearForm} style={secondaryButton}>
             Clear
           </button>
@@ -245,6 +290,9 @@ export default function Clubs() {
 
       <div style={{ marginTop: '28px' }}>
         <h3 style={{ ...sectionTitle, marginTop: 0 }}>Clubs List</h3>
+        <p style={{ ...helperText, marginTop: 0 }}>
+          Changes are now saved in the Spring Boot server using an embedded H2 database.
+        </p>
 
         {clubs.length === 0 ? (
           <div style={emptyState}>No clubs available yet.</div>
@@ -254,6 +302,7 @@ export default function Clubs() {
               <div key={club.id} style={styles.itemCard}>
                 <div style={styles.badge}>Club Profile</div>
                 <h4 style={styles.cardTitle}>{club.name}</h4>
+
                 <p><strong>Club ID:</strong> {club.id}</p>
                 <p><strong>Category:</strong> {club.category}</p>
                 <p><strong>President:</strong> {club.president}</p>
@@ -264,6 +313,7 @@ export default function Clubs() {
                   <button onClick={() => handleEditClub(club)} style={editButton}>
                     Edit
                   </button>
+
                   <button onClick={() => handleDeleteClub(club.id)} style={deleteButton}>
                     Delete
                   </button>
